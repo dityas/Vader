@@ -21,6 +21,7 @@ def check_known_MAC_ifaces():
             return True
 
     print("[ ] No known VM ifaces found")
+    return False
 
 
 def check_known_dev_files():
@@ -32,8 +33,24 @@ def check_known_dev_files():
             return True
 
     print("[ ] No known /dev files found")
+    return False
+
+
+def check_usb_device():
+
+    lsusb = subprocess.run("lsusb",
+                           stdout=subprocess.PIPE).stdout.decode("utf8")
+
+    for line in lsusb.splitlines():
+        if "VirtualBox" in line:
+            print(f"[X] Found USB device log {line}")
+            return True
+
+    print("[ ] No virtual USB devices detected")
+    return False
 
 
 if __name__ == "__main__":
     check_known_MAC_ifaces()
     check_known_dev_files()
+    check_usb_device()

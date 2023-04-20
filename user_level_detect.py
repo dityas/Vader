@@ -2,6 +2,53 @@ import subprocess
 import pathlib
 
 
+def get_file_data(file_path):
+    try:
+        data = ""
+        with open(file_path, 'r') as f:
+            data = f.read()
+
+        return data
+
+    except Exception as e:
+        print(f"[-] Error {e} while reading file {file_path}")
+        return ""
+
+
+def check_DMI_info():
+
+    identifiers = ["KVM",
+                   "OpenStack",
+                   "KubeVirt",
+                   "Amazon EC2",
+                   "QEMU",
+                   "VMware",
+                   "VMW",
+                   "innotek GmbH",
+                   "VirtualBox",
+                   "Xen",
+                   "Bochs",
+                   "Parallels",
+                   "BHYVE",
+                   "Hyper-V",
+                   "Apple Virtualization"]
+
+    DMI_FILES = ["/sys/class/dmi/id/product_name",
+                 "/sys/class/dmi/id/sys_vendor",
+                 "/sys/class/dmi/id/board_vendor",
+                 "/sys/class/dmi/id/bios_vendor"]
+
+    for dmi_file in DMI_FILES:
+        data = get_file_data(dmi_file)
+
+        for identifier in identifiers:
+            if identifier in data:
+                print(f"[X] Found {identifier} in {dmi_file}")
+                return True
+
+    print("[ ] Nothing suspicious found in dmi files")
+
+
 def _get_interface_addrs(raw_strings):
 
     addrs = filter(lambda x: "link/" in x, raw_strings)
@@ -54,3 +101,4 @@ if __name__ == "__main__":
     check_known_MAC_ifaces()
     check_known_dev_files()
     check_usb_device()
+    check_DMI_info()

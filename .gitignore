@@ -3,3 +3,4 @@ __pycache__/
 *.pyx
 
 kernel_source/
+test_vm/

@@ -47,6 +47,7 @@ def check_DMI_info():
                 return True
 
     print("[ ] Nothing suspicious found in dmi files")
+    return False
 
 
 def _get_interface_addrs(raw_strings):

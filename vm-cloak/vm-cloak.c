@@ -37,13 +37,13 @@ static int __init start_vm_cloak(void) {
     ret = register_kprobe(&sys_call_table_probe);
 
 #if defined(CONFIG_KPROBES)
-    pr_info("Kernel compiled with kprobes\r\n");
+    pr_info("kprobes available\r\n");
 #else
     pr_info("Kernel not compiled with kprobes\r\n");
 #endif
 
     if (ret < 0) {
-        pr_err("Failed to register sys_call_table_probe\r\n");
+        pr_err("Failed to register sys_call_table_probe, %d\r\n", ret);
         return ret;
     }
 

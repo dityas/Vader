@@ -1,4 +1,4 @@
-#include <linux/init.h>
+#include <linux/stddef.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/kprobes.h>
@@ -12,45 +12,48 @@ MODULE_AUTHOR("Aditya Shinde");
  */
 MODULE_DESCRIPTION("Information spoofer to beat user level virt checks");
 
-/*
- * Define KProbe for hooking to sys_call_table symbol
- */
-static char symbol[KSYM_NAME_LEN] = "kernel_clone";
-static struct kprobe sys_call_table_probe = {
-    .symbol_name = symbol,
-};
+
+static unsigned long **syscall_table;
+static unsigned long **get_syscall_table(void);
 
 /*
- * Define and pre and post probe routines for debugging
+ * Find the location of kallsyms_lookup_name. Then use that to locate 
+ * sys_call_table and return the address.
  */
-static int __kprobes probe_entry(struct kprobe *kp, struct pt_regs *regs) {
+static unsigned long **get_syscall_table(void) {
 
-    pr_info("Found %s at %p\r\n",kp->symbol_name, kp->addr);
-    return 0;
+    unsigned long *kallsyms_lookup_name;
+    int register_ret;
+
+    struct kprobe lookup_probe = {
+        .symbol_name = "kallsyms_lookup_name",
+    };
+    
+    register_ret = register_kprobe(&lookup_probe);
+    if (register_ret < 0) {
+        pr_err("Could not register lookup_probe, %d\r\n", register_ret);
+        return NULL;
+    }
+
+    kallsyms_lookup_name = (unsigned long *)(const char *)lookup_probe.addr;
+    pr_info("Found kallsyms_lookup_name at %p\r\n", kallsyms_lookup_name);
+    unregister_kprobe(&lookup_probe);
+
+    return NULL;
 }
+
 
 static int __init start_vm_cloak(void) {
 
-    int ret;
     pr_info("Starting VMCloak\r\n");
 
-    sys_call_table_probe.pre_handler = probe_entry;
-    ret = register_kprobe(&sys_call_table_probe);
+    syscall_table = get_syscall_table();
 
-#if defined(CONFIG_KPROBES)
-    pr_info("kprobes available\r\n");
-#else
-    pr_info("Kernel not compiled with kprobes\r\n");
-#endif
-
-    if (ret < 0) {
-        pr_err("Failed to register sys_call_table_probe, %d\r\n", ret);
-        return ret;
+    if (syscall_table == NULL) {
+        pr_err("Failed to locate syscall table\r\n");
+        return -1;
     }
 
-
-    pr_info("sys_call_table_probe is at %p\r\n", sys_call_table_probe.addr);
-    unregister_kprobe(&sys_call_table_probe);
     return 0;
 }
 

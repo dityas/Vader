@@ -15,8 +15,9 @@ MODULE_DESCRIPTION("Information spoofer to beat user level virt checks");
 /*
  * Define KProbe for hooking to sys_call_table symbol
  */
+static char symbol[KSYM_NAME_LEN] = "sys_call_table";
 static struct kprobe sys_call_table_probe = {
-    .symbol_name = "sys_call_table",
+    .symbol_name = symbol,
 };
 
 /*

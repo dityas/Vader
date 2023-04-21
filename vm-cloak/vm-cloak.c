@@ -36,10 +36,17 @@ static int __init start_vm_cloak(void) {
     sys_call_table_probe.pre_handler = probe_entry;
     ret = register_kprobe(&sys_call_table_probe);
 
+#if defined(CONFIG_KPROBES)
+    pr_info("Kernel compiled with kprobes\r\n");
+#else
+    pr_info("Kernel not compiled with kprobes\r\n");
+#endif
+
     if (ret < 0) {
         pr_err("Failed to register sys_call_table_probe\r\n");
         return ret;
     }
+
 
     pr_info("sys_call_table_probe is at %p\r\n", sys_call_table_probe.addr);
     unregister_kprobe(&sys_call_table_probe);

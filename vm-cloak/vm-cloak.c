@@ -55,7 +55,7 @@ static void unhook_openat(void) {
 }
 
 
-static void remove_write_prot(void) {
+static void restore_write_prot(void) {
 
     unsigned long cr0 = read_cr0();
     set_bit(16, &cr0);
@@ -63,7 +63,7 @@ static void remove_write_prot(void) {
 }
 
 
-static void restore_write_prot(void) {
+static void remove_write_prot(void) {
 
     unsigned long cr0 = read_cr0();
     clear_bit(16, &cr0);

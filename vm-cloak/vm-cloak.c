@@ -29,9 +29,12 @@ static void unhook_syscalls(void);
 static void unhook_openat(void);
 
 
+static unsigned long OPENAT_COUNTS = 0;
+
 static asmlinkage long vm_cloak_openat(
         int fd, const char __user *fname, int flags, umode_t mode) {
 
+    OPENAT_COUNTS += 1;
     return kern_openat(fd, fname, flags, mode);
 }
 
@@ -157,6 +160,7 @@ static int __init start_vm_cloak(void) {
 static void __exit stop_vm_cloak(void) {
 
     unhook_syscalls();
+    pr_info("openat was called %ld times\r\n", OPENAT_COUNTS);
     pr_info("Stopping VMCloak\r\n");
 }
 

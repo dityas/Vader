@@ -90,7 +90,7 @@ static void hook_syscalls(void) {
 
     remove_write_prot();
     
-    // hook_openat();
+    hook_openat();
 
     restore_write_prot();
 }
@@ -99,7 +99,7 @@ static void unhook_syscalls(void) {
 
     remove_write_prot();
 
-    // unhook_openat();
+    unhook_openat();
 
     restore_write_prot();
 }

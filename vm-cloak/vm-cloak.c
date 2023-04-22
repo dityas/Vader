@@ -18,8 +18,8 @@ static asmlinkage long vm_cloak_openat(int, const char __user *, int, umode_t);
 static unsigned long **syscall_table;
 static unsigned long **get_syscall_table(void);
 
-static inline void remove_write_prot(void);
-static inline void restore_write_prot(void);
+static void remove_write_prot(void);
+static void restore_write_prot(void);
 
 static void hook_syscalls(void);
 static void hook_openat(void);
@@ -55,7 +55,7 @@ static void unhook_openat(void) {
 }
 
 
-static inline void remove_write_prot(void) {
+static void remove_write_prot(void) {
 
     unsigned long cr0 = read_cr0();
     set_bit(16, &cr0);
@@ -63,7 +63,7 @@ static inline void remove_write_prot(void) {
 }
 
 
-static inline void restore_write_prot(void) {
+static void restore_write_prot(void) {
 
     unsigned long cr0 = read_cr0();
     clear_bit(16, &cr0);

@@ -105,7 +105,10 @@ static int __init start_vm_cloak(void) {
     }
 
     pr_info("sys_call_table found at 0x%p\r\n", syscall_table);
-    hook_syscalls();
+    // hook_syscalls();
+    unsigned long cr0 = read_cr0();
+    write_cr0(&cr0);
+    pr_info("cr0 is 0x%x\r\n", cr0);
 
     return 0;
 }
@@ -113,7 +116,7 @@ static int __init start_vm_cloak(void) {
 
 static void __exit stop_vm_cloak(void) {
 
-    unhook_syscalls();
+    // unhook_syscalls();
     pr_info("Stopping VMCloak\r\n");
 }
 

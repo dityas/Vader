@@ -4,17 +4,36 @@
 #include <linux/kprobes.h>
 
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Aditya Shinde");
-/*
- * Obviously, change the description to something deceptive. Maybe some
- * random wireless device driver.
+/* 
+ * Declare types to make everything readable
+ *
+ * openat_ptr points to asmlinkage long sys_openat(...)
  */
-MODULE_DESCRIPTION("Information spoofer to beat user level virt checks");
+typedef asmlinkage long (*openat_ptr)(int, const char __user *, int, umode_t);
 
 
 static unsigned long **syscall_table;
 static unsigned long **get_syscall_table(void);
+static openat_ptr kern_openat;
+
+static void hook_syscalls(void);
+static void hook_openat(void);
+
+
+static void hook_openat(void) {
+    /*
+     * Hook the openat syscall
+     */
+
+    kern_openat = (openat_ptr) syscall_table[__NR_openat];
+    pr_info("openat is at %p\r\n", kern_openat);
+}
+
+static void hook_syscalls(void) {
+
+    hook_openat();
+}
+
 
 /*
  * Find the location of kallsyms_lookup_name. Then use that to locate 
@@ -59,6 +78,8 @@ static int __init start_vm_cloak(void) {
     }
 
     pr_info("sys_call_table found at 0x%p\r\n", syscall_table);
+    hook_syscalls();
+
     return 0;
 }
 
@@ -67,6 +88,15 @@ static void __exit stop_vm_cloak(void) {
 
     pr_info("Stopping VMCloak\r\n");
 }
+
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Aditya Shinde");
+/*
+ * Obviously, change the description to something deceptive. Maybe some
+ * random wireless device driver.
+ */
+MODULE_DESCRIPTION("Information spoofer to beat user level virt checks");
 
 
 module_init(start_vm_cloak);

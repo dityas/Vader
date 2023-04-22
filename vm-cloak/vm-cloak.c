@@ -58,7 +58,9 @@ static void unhook_openat(void) {
 static void restore_write_prot(void) {
 
     unsigned long cr0 = read_cr0();
+    pr_err("CR0 value is 0x%lx", cr0);
     set_bit(16, &cr0);
+    pr_err("CR0 value is 0x%lx", cr0);
     write_cr0(cr0);
 }
 
@@ -77,7 +79,7 @@ static void hook_syscalls(void) {
 
     remove_write_prot();
     
-    hook_openat();
+    // hook_openat();
 
     restore_write_prot();
 }
@@ -86,7 +88,7 @@ static void unhook_syscalls(void) {
 
     remove_write_prot();
 
-    unhook_openat();
+    // unhook_openat();
 
     restore_write_prot();
 }

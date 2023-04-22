@@ -11,13 +11,25 @@
  */
 typedef asmlinkage long (*openat_ptr)(int, const char __user *, int, umode_t);
 
+static openat_ptr kern_openat;
+static asmlinkage long vm_cloak_openat(int, const char __user *, int, umode_t);
+
 
 static unsigned long **syscall_table;
 static unsigned long **get_syscall_table(void);
-static openat_ptr kern_openat;
 
 static void hook_syscalls(void);
 static void hook_openat(void);
+
+static void unhook_syscalls(void);
+static void unhook_openat(void);
+
+
+static asmlinkage long vm_cloak_openat(
+        int fd, const char __user *fname, int flags, umode_t mode) {
+
+    return kern_openat(fd, fname, flags, mode);
+}
 
 
 static void hook_openat(void) {
@@ -26,12 +38,27 @@ static void hook_openat(void) {
      */
 
     kern_openat = (openat_ptr) syscall_table[__NR_openat];
-    pr_info("openat is at %p\r\n", kern_openat);
+    syscall_table[__NR_openat] = (unsigned long *) vm_cloak_openat;
+    pr_info("openat hooked");
+}
+
+static void unhook_openat(void) {
+    /*
+     * Hook the openat syscall
+     */
+
+    syscall_table[__NR_openat] = (unsigned long *) kern_openat;
+    pr_info("openat restored");
 }
 
 static void hook_syscalls(void) {
 
     hook_openat();
+}
+
+static void unhook_syscalls(void) {
+
+    unhook_openat();
 }
 
 
@@ -86,6 +113,7 @@ static int __init start_vm_cloak(void) {
 
 static void __exit stop_vm_cloak(void) {
 
+    unhook_syscalls();
     pr_info("Stopping VMCloak\r\n");
 }
 

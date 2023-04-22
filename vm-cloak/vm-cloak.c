@@ -18,6 +18,9 @@ static asmlinkage long vm_cloak_openat(int, const char __user *, int, umode_t);
 static unsigned long **syscall_table;
 static unsigned long **get_syscall_table(void);
 
+static inline void remove_write_prot(void);
+static inline void restore_write_prot(void);
+
 static void hook_syscalls(void);
 static void hook_openat(void);
 
@@ -51,14 +54,39 @@ static void unhook_openat(void) {
     pr_info("openat restored");
 }
 
+
+static inline void remove_write_prot(void) {
+
+    unsigned long cr0 = read_cr0();
+    set_bit(16, &cr0);
+    write_cr0(cr0);
+}
+
+
+static inline void restore_write_prot(void) {
+
+    unsigned long cr0 = read_cr0();
+    clear_bit(16, &cr0);
+    write_cr0(cr0);
+}
+
+
 static void hook_syscalls(void) {
 
+    remove_write_prot();
+    
     hook_openat();
+
+    restore_write_prot();
 }
 
 static void unhook_syscalls(void) {
 
+    remove_write_prot();
+
     unhook_openat();
+
+    restore_write_prot();
 }
 
 
@@ -105,10 +133,7 @@ static int __init start_vm_cloak(void) {
     }
 
     pr_info("sys_call_table found at 0x%p\r\n", syscall_table);
-    // hook_syscalls();
-    unsigned long cr0 = read_cr0();
-    write_cr0(cr0);
-    pr_info("cr0 is 0x%x\r\n", cr0);
+    hook_syscalls();
 
     return 0;
 }
@@ -116,7 +141,7 @@ static int __init start_vm_cloak(void) {
 
 static void __exit stop_vm_cloak(void) {
 
-    // unhook_syscalls();
+    unhook_syscalls();
     pr_info("Stopping VMCloak\r\n");
 }
 

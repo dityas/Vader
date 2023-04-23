@@ -1,18 +1,21 @@
 #include <linux/stddef.h>
 #include <linux/module.h>
-#include <linux/printk.h>
+#include <linux/unistd.h>
 #include <linux/kprobes.h>
-
-
+#include <linux/sched.h>
+#include <linux/fs.h>
 /* 
  * Declare types to make everything readable
  *
  * openat_ptr points to asmlinkage long sys_openat(...)
+ *
+ * calling convention with struct pt_regs:
+ * RDI, RSI, RDX, R10, R8, R9
  */
-typedef asmlinkage long (*openat_ptr)(int, const char __user *, int, umode_t);
+typedef asmlinkage long (*syscall_ptr)(const struct pt_regs *);
 
-static openat_ptr kern_openat;
-static asmlinkage long vm_cloak_openat(int, const char __user *, int, umode_t);
+static syscall_ptr kern_openat;
+static asmlinkage long vm_cloak_openat(const struct pt_regs *);
 
 
 static unsigned long **syscall_table;
@@ -29,10 +32,21 @@ static void unhook_syscalls(void);
 static void unhook_openat(void);
 
 
-static asmlinkage long vm_cloak_openat(
-        int fd, const char __user *fname, int flags, umode_t mode) {
+static int OPENAT_COUNTS = 0;
 
-    return kern_openat(fd, fname, flags, mode);
+
+/*
+ * RSI will have the const char __user *filename value.
+ * We will use get_filename(char __user *) from fs.h to get the filename being
+ * opened.
+ */
+static asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
+
+    struct filename *fname;
+    OPENAT_COUNTS += 1;
+    
+    pr_info("inside hook for %s\r\n", (char __user *) regs->si);
+    return kern_openat(regs);
 }
 
 
@@ -41,7 +55,7 @@ static void hook_openat(void) {
      * Hook the openat syscall
      */
 
-    kern_openat = (openat_ptr) syscall_table[__NR_openat];
+    kern_openat = (syscall_ptr) syscall_table[__NR_openat];
     syscall_table[__NR_openat] = (unsigned long *) vm_cloak_openat;
     pr_info("openat hooked");
 }
@@ -55,6 +69,10 @@ static void unhook_openat(void) {
     pr_info("openat restored");
 }
 
+
+/*
+ * Write protection mechanism manipulation
+ */
 
 static inline void asm_write_cr0(unsigned long cr0) {
     /*
@@ -86,11 +104,15 @@ static void remove_write_prot(void) {
 }
 
 
+/*
+ * Hooking and unhooking functions
+ */
+
 static void hook_syscalls(void) {
 
     remove_write_prot();
     
-    // hook_openat();
+    hook_openat();
 
     restore_write_prot();
 }
@@ -99,7 +121,7 @@ static void unhook_syscalls(void) {
 
     remove_write_prot();
 
-    // unhook_openat();
+    unhook_openat();
 
     restore_write_prot();
 }
@@ -137,6 +159,10 @@ static unsigned long **get_syscall_table(void) {
 }
 
 
+/*
+ * Module init and exit
+ */
+
 static int __init start_vm_cloak(void) {
 
     pr_info("Starting VMCloak\r\n");
@@ -157,6 +183,7 @@ static int __init start_vm_cloak(void) {
 static void __exit stop_vm_cloak(void) {
 
     unhook_syscalls();
+    pr_info("openat was called %d times\r\n", OPENAT_COUNTS);
     pr_info("Stopping VMCloak\r\n");
 }
 

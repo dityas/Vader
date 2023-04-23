@@ -2,12 +2,15 @@
 #include <linux/module.h>
 #include <linux/unistd.h>
 #include <linux/kprobes.h>
-
-
+#include <linux/sched.h>
+#include <linux/fs.h>
 /* 
  * Declare types to make everything readable
  *
  * openat_ptr points to asmlinkage long sys_openat(...)
+ *
+ * calling convention with struct pt_regs:
+ * RDI, RSI, RDX, R10, R8, R9
  */
 typedef asmlinkage long (*syscall_ptr)(const struct pt_regs *);
 
@@ -30,12 +33,19 @@ static void unhook_openat(void);
 
 
 static int OPENAT_COUNTS = 0;
-static const char* last_opened_file;
 
+
+/*
+ * RSI will have the const char __user *filename value.
+ * We will use get_filename(char __user *) from fs.h to get the filename being
+ * opened.
+ */
 static asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
 
+    struct filename *fname;
     OPENAT_COUNTS += 1;
-    pr_info("inside hook\r\n");
+    
+    pr_info("inside hook for %s\r\n", (char __user *) regs->si);
     return kern_openat(regs);
 }
 
@@ -59,6 +69,10 @@ static void unhook_openat(void) {
     pr_info("openat restored");
 }
 
+
+/*
+ * Write protection mechanism manipulation
+ */
 
 static inline void asm_write_cr0(unsigned long cr0) {
     /*
@@ -89,6 +103,10 @@ static void remove_write_prot(void) {
     pr_err("CR0 value after clearing is 0x%lx", cr0);
 }
 
+
+/*
+ * Hooking and unhooking functions
+ */
 
 static void hook_syscalls(void) {
 
@@ -140,6 +158,10 @@ static unsigned long **get_syscall_table(void) {
     return (unsigned long **) sym_lookup("sys_call_table");
 }
 
+
+/*
+ * Module init and exit
+ */
 
 static int __init start_vm_cloak(void) {
 

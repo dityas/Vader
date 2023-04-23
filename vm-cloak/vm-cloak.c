@@ -1,6 +1,6 @@
 #include <linux/stddef.h>
 #include <linux/module.h>
-#include <linux/printk.h>
+#include <linux/unistd.h>
 #include <linux/kprobes.h>
 
 
@@ -9,10 +9,10 @@
  *
  * openat_ptr points to asmlinkage long sys_openat(...)
  */
-typedef asmlinkage long (*openat_ptr)(int, const char __user *, int, umode_t);
+typedef asmlinkage long (*syscall_ptr)(const struct pt_regs *);
 
-static openat_ptr kern_openat;
-static asmlinkage long vm_cloak_openat(int, const char __user *, int, umode_t);
+static syscall_ptr kern_openat;
+static asmlinkage long vm_cloak_openat(const struct pt_regs *);
 
 
 static unsigned long **syscall_table;
@@ -29,14 +29,14 @@ static void unhook_syscalls(void);
 static void unhook_openat(void);
 
 
-static unsigned long OPENAT_COUNTS = 0;
+static int OPENAT_COUNTS = 0;
+static const char* last_opened_file;
 
-static asmlinkage long vm_cloak_openat(
-        int fd, const char __user *fname, int flags, umode_t mode) {
+static asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
 
     OPENAT_COUNTS += 1;
-    pr_info("opening %s\r\n", fname);
-    return kern_openat(fd, fname, flags, mode);
+    pr_info("inside hook\r\n");
+    return kern_openat(regs);
 }
 
 
@@ -45,7 +45,7 @@ static void hook_openat(void) {
      * Hook the openat syscall
      */
 
-    kern_openat = (openat_ptr) syscall_table[__NR_openat];
+    kern_openat = (syscall_ptr) syscall_table[__NR_openat];
     syscall_table[__NR_openat] = (unsigned long *) vm_cloak_openat;
     pr_info("openat hooked");
 }
@@ -161,7 +161,7 @@ static int __init start_vm_cloak(void) {
 static void __exit stop_vm_cloak(void) {
 
     unhook_syscalls();
-    pr_info("openat was called %ld times\r\n", OPENAT_COUNTS);
+    pr_info("openat was called %d times\r\n", OPENAT_COUNTS);
     pr_info("Stopping VMCloak\r\n");
 }
 

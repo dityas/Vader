@@ -35,6 +35,7 @@ static asmlinkage long vm_cloak_openat(
         int fd, const char __user *fname, int flags, umode_t mode) {
 
     OPENAT_COUNTS += 1;
+    pr_info("opening %s\r\n", fname);
     return kern_openat(fd, fname, flags, mode);
 }
 

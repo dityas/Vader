@@ -3,7 +3,7 @@
 #include <linux/unistd.h>
 #include <linux/kprobes.h>
 #include <linux/sched.h>
-#include <linux/fs.h>
+#include <linux/string.h>
 /* 
  * Declare types to make everything readable
  *
@@ -15,6 +15,7 @@
 typedef asmlinkage long (*syscall_ptr)(const struct pt_regs *);
 
 static syscall_ptr kern_openat;
+static void check_target_file(const char __user *);
 static asmlinkage long vm_cloak_openat(const struct pt_regs *);
 
 
@@ -36,16 +37,31 @@ static int OPENAT_COUNTS = 0;
 
 
 /*
+ * systemd-detect-virt behavior detection
+ */
+static const char *target_files[] = {
+    "/sys/class/dmi/id/product_name",
+    "/sys/class/dmi/id/sys_vendor",
+    "/sys/class/dmi/id/board_vendor",
+    "/sys/class/dmi/id/bios_vendor"};
+
+
+static void check_target_file(const char __user *fname) {
+
+    int slen;
+
+    slen = (int) strlen(fname);
+    pr_info("fname %s is of len %d", fname, slen);
+}
+
+/*
  * RSI will have the const char __user *filename value.
- * We will use get_filename(char __user *) from fs.h to get the filename being
- * opened.
  */
 static asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
 
-    struct filename *fname;
     OPENAT_COUNTS += 1;
     
-    pr_info("inside hook for %s\r\n", (char __user *) regs->si);
+    check_target_file((char __user *) regs->si);
     return kern_openat(regs);
 }
 

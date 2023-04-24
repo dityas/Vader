@@ -1,4 +1,5 @@
-obj-m = vm-cloak.o
+obj-m += vader.o
+vader-objs := vm-cloak.o spoofer.o hooks.o
 
 PWD := $(CURDIR)
 

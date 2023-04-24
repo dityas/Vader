@@ -8,7 +8,8 @@ const char *tfiles[] = {
     "/sys/class/dmi/id/product_name",
     "/sys/class/dmi/id/sys_vendor",
     "/sys/class/dmi/id/board_vendor",
-    "/sys/class/dmi/id/bios_vendor"
+    "/sys/class/dmi/id/bios_vendor",
+    NULL
 };
 
 const char *comm_allow_list[] = {
@@ -51,22 +52,21 @@ bool is_comm_allowed(void) {
 }
 
 
-void get_fname_from_fd(int fd) {
+void get_fname_from_fd(int _fd) {
 
     struct file *open_file;
     const char *fname = NULL;
     const char *parent = NULL;
     char comm[TASK_COMM_LEN];
 
-    open_file = current->files->fd_array[fd];
     get_task_comm(comm, current);
+    open_file = fcheck(_fd);
     
 
     if (open_file != NULL) {
         fname = open_file->f_path.dentry->d_name.name;
-        parent = open_file->f_path.dentry->d_parent->d_name.name;
-        pr_info("%s, %d reading %s/%s", 
-                comm, (int) current->pid, parent, fname);
+        pr_info("%s, %d reading %s\r\n", 
+                comm, (int) current->pid, fname);
     }
 }
 

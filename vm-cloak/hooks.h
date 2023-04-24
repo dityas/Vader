@@ -3,6 +3,7 @@
 
 #include <linux/stddef.h>
 #include <linux/unistd.h>
+#include <linux/fdtable.h>
 #include <linux/printk.h>
 
 #include "spoofer.h"

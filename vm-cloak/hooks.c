@@ -36,6 +36,7 @@ asmlinkage long vm_cloak_read(const struct pt_regs *regs) {
     if (!is_comm_allowed()) {
         fd = (int) regs->di;
         get_fname_from_fd(fd);
+
     }
 
     return kern_read(regs);

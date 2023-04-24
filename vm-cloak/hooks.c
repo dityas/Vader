@@ -54,7 +54,7 @@ asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
     const char* fname;
 
     fname = (char *) regs->si;
-    if(!check_target_file(fname)) {
+    if(!check_target_file_fullname(fname)) {
         char comm[TASK_COMM_LEN];
         get_task_comm(comm, current);
         pr_alert("%s is being opened by %s, %d\r\n", 

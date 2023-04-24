@@ -4,11 +4,17 @@
  * systemd-detect-virt behavior detection
  */
 
-const char *tfiles[] = {
-    "/sys/class/dmi/id/product_name",
-    "/sys/class/dmi/id/sys_vendor",
-    "/sys/class/dmi/id/board_vendor",
-    "/sys/class/dmi/id/bios_vendor",
+struct target_file {
+
+    const char *fullname;
+    const char *fname;
+};
+
+const struct target_file tfiles[] = {
+    { "/sys/class/dmi/id/product_name"  ,   "product_name"  },
+    { "/sys/class/dmi/id/sys_vendor"    ,   "sys_vendor"    },
+    { "/sys/class/dmi/id/board_vendor"  ,   "board_vendor"  },
+    { "/sys/class/dmi/id/bios_vendor"   ,   "bios_vendor"   },
     NULL
 };
 
@@ -20,14 +26,32 @@ const char *comm_allow_list[] = {
 };
 
 
-int check_target_file(const char *fname) {
+int check_target_file_fullname(const char *fname) {
 
-    int i;
+    int i = 0;
     
-    for (i = 0; i < 4; i++) {
-        if (!strcmp(tfiles[i], fname)) {
+    while (i < 4) {
+        if (!strcmp(tfiles[i].fullname, fname)) {
             return 0;
         }
+
+        i += 1;
+    }
+
+    return 1;
+}
+
+
+int check_target_file_name(const char *fname) {
+
+    int i = 0;
+    
+    while (i < 4) {
+        if (!strcmp(tfiles[i].fname, fname)) {
+            return 0;
+        }
+
+        i += 1;
     }
 
     return 1;
@@ -56,17 +80,18 @@ void get_fname_from_fd(int _fd) {
 
     struct file *open_file;
     const char *fname = NULL;
-    const char *parent = NULL;
     char comm[TASK_COMM_LEN];
 
     get_task_comm(comm, current);
     open_file = fcheck(_fd);
     
-
     if (open_file != NULL) {
         fname = open_file->f_path.dentry->d_name.name;
-        pr_info("%s, %d reading %s\r\n", 
-                comm, (int) current->pid, fname);
+
+        if (!check_target_file_name(fname)) {
+            pr_info("%s, %d reading %s\r\n", 
+                    comm, (int) current->pid, fname);
+        }
     }
 }
 

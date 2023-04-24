@@ -9,7 +9,8 @@
 #include <linux/dcache.h>
 
 
-int check_target_file(const char *);
+int check_target_file_fullname(const char *);
+int check_target_file_name(const char *);
 void get_fname_from_fd(int);
 void get_current_command(char *);
 bool is_comm_allowed(void);

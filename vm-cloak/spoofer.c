@@ -11,6 +11,9 @@ struct target_file {
     const char *fname;
 };
 
+
+const char *spoofed_device = "Dell Inc.\r\n\r\n                             ";
+
 const struct target_file tfiles[] = {
     {   "/sys/class/dmi/id/product_name"        ,
         "/devices/virtual/dmi/id/product_name"  ,
@@ -102,16 +105,57 @@ struct dentry *get_path_from_dentry(struct dentry *_dentry) {
 }
 
 
-void spoof_result(char * user_buff) {
+void spoof_result(char __user *user_buff, char *fname) {
+
+    char *buff;
     
-    pr_info("%s being read from target file\r\n", user_buff);
+    buff = strndup_user(user_buff, 512);
+    copy_to_user(user_buff, spoofed_device, 20);
+
+    kfree(buff);
+}
+
+
+/*
+ * Try and get the absolute path of an open file from the file descriptor
+ */
+int get_target_file_from_fd(int _fd, char *buff) {
+
+    struct file *open_file;
+    const char *fname = NULL;
+    char *full_path = NULL;
+
+    full_path = kmalloc(sizeof(char) * 512, GFP_KERNEL);
+    if (!full_path)
+        return -1;
+
+    open_file = fcheck(_fd);
+    
+    if (open_file != NULL) {
+        fname = open_file->f_path.dentry->d_name.name;
+
+        if (!check_target_file_name(fname)) {
+            full_path = dentry_path_raw(
+                    open_file->f_path.dentry, full_path, 512);
+
+            if (!check_target_file_fullname(full_path)) {
+                strcpy(buff, full_path);
+                return 0;
+            }
+            
+        }
+    }
+
+    if (full_path != NULL)
+        kfree(full_path);
+
+    return -1;
 }
 
 
 bool is_fd_target_file(int _fd) {
 
     struct file *open_file;
-    struct dentry *d_entry;
     const char *fname = NULL;
     char comm[TASK_COMM_LEN];
     char *full_path;

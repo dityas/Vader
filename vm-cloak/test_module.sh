@@ -20,6 +20,7 @@ sleep 1
 
 echo "Cleaning up..."
 make clean
+sleep 1
 
 echo "Logs..."
 dmesg

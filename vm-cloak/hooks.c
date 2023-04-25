@@ -33,14 +33,14 @@ asmlinkage long vm_cloak_read(const struct pt_regs *regs) {
 
     int fd;
     asmlinkage long orig_result;
-    char fname[1024];
+    char fname[512];
 
     if (!is_comm_allowed()) {
         fd = (int) regs->di;
-        if (is_fd_target_file(fd)) {
-            orig_result = kern_read(regs);
-            spoof_result((const char __user *) regs->si);
+        if (get_target_file_from_fd(fd, fname) >= 0) {
 
+            orig_result = kern_read(regs);
+            spoof_result((char __user *) regs->si, fname);
             return orig_result;
         }
     }

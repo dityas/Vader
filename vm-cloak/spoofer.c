@@ -7,16 +7,30 @@
 struct target_file {
 
     const char *fullname;
+    const char *sysfs_name;
     const char *fname;
 };
 
 const struct target_file tfiles[] = {
-    { "/sys/class/dmi/id/product_name"  ,   "product_name"  },
-    { "/sys/class/dmi/id/sys_vendor"    ,   "sys_vendor"    },
-    { "/sys/class/dmi/id/board_vendor"  ,   "board_vendor"  },
-    { "/sys/class/dmi/id/bios_vendor"   ,   "bios_vendor"   },
+    {   "/sys/class/dmi/id/product_name"        ,
+        "/devices/virtual/dmi/id/product_name"  ,
+        "product_name"  
+    },
+    {   "/sys/class/dmi/id/sys_vendor"          ,
+        "/devices/virtual/dmi/id/sys_vendor"    ,
+        "sys_vendor"    
+    },
+    {   "/sys/class/dmi/id/board_vendor"        ,
+        "/devices/virtual/dmi/id/board_vendor"  ,
+        "board_vendor"  
+    },
+    {   "/sys/class/dmi/id/bios_vendor"         ,
+        "/devices/virtual/dmi/id/bios_vendor"   ,
+        "bios_vendor"   
+    },
     NULL
 };
+
 
 const char *comm_allow_list[] = {
     "rmmod",
@@ -31,7 +45,8 @@ int check_target_file_fullname(const char *fname) {
     int i = 0;
     
     while (i < 4) {
-        if (!strcmp(tfiles[i].fullname, fname)) {
+        if (!strcmp(tfiles[i].fullname, fname) || 
+                !(strcmp(tfiles[i].sysfs_name, fname))) {
             return 0;
         }
 
@@ -76,11 +91,37 @@ bool is_comm_allowed(void) {
 }
 
 
-void get_fname_from_fd(int _fd) {
+struct dentry *get_path_from_dentry(struct dentry *_dentry) {
+    
+    if (_dentry != NULL) {
+        pr_info("Inside %s\r\n", _dentry->d_name.name);
+        return dget_parent(_dentry);
+    }
+
+    return NULL;
+}
+
+
+void spoof_result(char * user_buff) {
+    
+    pr_info("%s being read from target file\r\n", user_buff);
+}
+
+
+bool is_fd_target_file(int _fd) {
 
     struct file *open_file;
+    struct dentry *d_entry;
     const char *fname = NULL;
     char comm[TASK_COMM_LEN];
+    char *full_path;
+    char *retval;
+
+    full_path = kmalloc(sizeof(char) * 1024, GFP_KERNEL);
+    if (!full_path) {
+        pr_err("Could not allocate memory\r\n");
+        return false;
+    }
 
     get_task_comm(comm, current);
     open_file = fcheck(_fd);
@@ -89,9 +130,17 @@ void get_fname_from_fd(int _fd) {
         fname = open_file->f_path.dentry->d_name.name;
 
         if (!check_target_file_name(fname)) {
-            pr_info("%s, %d reading %s\r\n", 
-                    comm, (int) current->pid, fname);
+            retval = dentry_path_raw(
+                    open_file->f_path.dentry, full_path, 1024);
+
+            if (!check_target_file_fullname(retval)) {
+                pr_alert("%s reading target file %s\r\n", comm, retval);
+                return true;
+            }
         }
     }
+
+    kfree(full_path);
+    return false;
 }
 

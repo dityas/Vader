@@ -7,12 +7,16 @@
 #include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/dcache.h>
+#include <linux/slab.h>
 
 
 int check_target_file_fullname(const char *);
 int check_target_file_name(const char *);
-void get_fname_from_fd(int);
+struct dentry *get_path_from_dentry(struct dentry *);
+bool is_fd_target_file(int);
 void get_current_command(char *);
+void spoof_result(char *);
 bool is_comm_allowed(void);
+
 
 #endif // SPOOFER_H

@@ -111,7 +111,7 @@ struct dentry *get_path_from_dentry(struct dentry *_dentry) {
 
 void spoof_result(char __user *user_buff, char *fname, long read_size) {
 
-    char *buff = kmalloc(sizeof(char) * read_size, GFP_KERNEL);
+    char *buff = kmalloc(read_size, GFP_KERNEL);
     strscpy_pad(buff, spoofed_device, (size_t) read_size);
 
     copy_to_user(user_buff, buff, read_size);

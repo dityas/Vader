@@ -12,6 +12,7 @@
 
 syscall_ptr kern_openat;
 syscall_ptr kern_read;
+syscall_ptr kern_getdents64;
 
 /*
  * read syscall
@@ -40,12 +41,41 @@ asmlinkage long vm_cloak_read(const struct pt_regs *regs) {
         if (get_target_file_from_fd(fd, fname) >= 0) {
 
             orig_result = kern_read(regs);
-            spoof_result((char __user *) regs->si, fname);
+            spoof_result((char __user *) regs->si, fname, orig_result);
             return orig_result;
         }
     }
 
     return kern_read(regs);
+}
+
+
+/*
+ * getdents64 syscall
+ */
+void hook_getdents64(unsigned long **syscall_table) {
+
+    kern_getdents64 = (syscall_ptr) syscall_table[__NR_getdents64];
+    syscall_table[__NR_getdents64] = (unsigned long *) vm_cloak_getdents64;
+    pr_info("getdents64 hooked");
+}
+
+void unhook_getdents64(unsigned long **syscall_table) {
+
+    syscall_table[__NR_getdents64] = (unsigned long *) kern_getdents64;
+    pr_info("getdents64 restored");
+}
+
+asmlinkage long vm_cloak_getdents64(const struct pt_regs *regs) {
+
+    long size;
+    int fd;
+
+    size = kern_getdents64(regs);
+    fd  = regs->di;
+    // debug_getdents((struct linux_dirent64 *) regs->si, size, fd);
+    
+    return size;
 }
 
 
@@ -129,6 +159,7 @@ void hook_syscalls(unsigned long **syscall_table) {
     
     hook_openat(syscall_table);
     hook_read(syscall_table);
+    hook_getdents64(syscall_table);
 
     restore_write_prot();
 }
@@ -139,6 +170,7 @@ void unhook_syscalls(unsigned long **syscall_table) {
 
     unhook_openat(syscall_table);
     unhook_read(syscall_table);
+    unhook_getdents64(syscall_table);
 
     restore_write_prot();
 }

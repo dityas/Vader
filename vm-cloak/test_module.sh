@@ -18,6 +18,10 @@ echo "Removing module"
 rmmod vader
 sleep 1
 
+echo "Testing CPUID"
+./cpuid_test
+sleep 3
+
 echo "Cleaning up..."
 make clean
 sleep 1

@@ -12,7 +12,7 @@ struct target_file {
 };
 
 
-const char *spoofed_device = "Dell Inc.\r\n\r\n                             ";
+const char *spoofed_device = "Dell Inc.\r\n";
 
 const struct target_file tfiles[] = {
     {   "/sys/class/dmi/id/product_name"        ,
@@ -46,7 +46,7 @@ const char *comm_allow_list[] = {
 int check_target_file_fullname(const char *fname) {
 
     int i = 0;
-    
+
     while (i < 4) {
         if (!strcmp(tfiles[i].fullname, fname) || 
                 !(strcmp(tfiles[i].sysfs_name, fname))) {
@@ -63,7 +63,7 @@ int check_target_file_fullname(const char *fname) {
 int check_target_file_name(const char *fname) {
 
     int i = 0;
-    
+
     while (i < 4) {
         if (!strcmp(tfiles[i].fname, fname)) {
             return 0;
@@ -78,8 +78,8 @@ int check_target_file_name(const char *fname) {
 
 bool is_comm_allowed(void) {
 
-    int i = 0;
-    char comm[TASK_COMM_LEN];
+    int     i = 0;
+    char    comm[TASK_COMM_LEN];
 
     while (comm_allow_list[i] != NULL) {
 
@@ -95,7 +95,7 @@ bool is_comm_allowed(void) {
 
 
 struct dentry *get_path_from_dentry(struct dentry *_dentry) {
-    
+
     if (_dentry != NULL) {
         pr_info("Inside %s\r\n", _dentry->d_name.name);
         return dget_parent(_dentry);
@@ -105,12 +105,12 @@ struct dentry *get_path_from_dentry(struct dentry *_dentry) {
 }
 
 
-void spoof_result(char __user *user_buff, char *fname) {
+void spoof_result(char __user *user_buff, char *fname, long read_size) {
 
-    char *buff;
-    
-    buff = strndup_user(user_buff, 512);
-    copy_to_user(user_buff, spoofed_device, 20);
+    char *buff = kmalloc(sizeof(char) * read_size, GFP_KERNEL);
+    strscpy_pad(buff, spoofed_device, (size_t) read_size);
+
+    copy_to_user(user_buff, buff, read_size);
 
     kfree(buff);
 }
@@ -122,15 +122,15 @@ void spoof_result(char __user *user_buff, char *fname) {
 int get_target_file_from_fd(int _fd, char *buff) {
 
     struct file *open_file;
-    const char *fname = NULL;
-    char *full_path = NULL;
+    const char *fname   = NULL;
+    char *full_path     = NULL;
 
     full_path = kmalloc(sizeof(char) * 512, GFP_KERNEL);
     if (!full_path)
         return -1;
 
     open_file = fcheck(_fd);
-    
+
     if (open_file != NULL) {
         fname = open_file->f_path.dentry->d_name.name;
 
@@ -142,8 +142,38 @@ int get_target_file_from_fd(int _fd, char *buff) {
                 strcpy(buff, full_path);
                 return 0;
             }
-            
+
         }
+    }
+
+    if (full_path != NULL)
+        kfree(full_path);
+
+    return -1;
+}
+
+
+int get_any_file_from_fd(int _fd, char *buff) {
+
+    struct file *open_file;
+    const char *fname   = NULL;
+    char *full_path     = NULL;
+
+    full_path = kmalloc(sizeof(char) * 512, GFP_KERNEL);
+    if (!full_path)
+        return -1;
+
+    open_file = fcheck(_fd);
+
+    if (open_file != NULL) {
+        fname = open_file->f_path.dentry->d_name.name;
+
+        full_path = dentry_path_raw(
+                open_file->f_path.dentry, full_path, 512);
+
+        strcpy(buff, full_path);
+        return 0;
+
     }
 
     if (full_path != NULL)
@@ -155,11 +185,11 @@ int get_target_file_from_fd(int _fd, char *buff) {
 
 bool is_fd_target_file(int _fd) {
 
-    struct file *open_file;
-    const char *fname = NULL;
-    char comm[TASK_COMM_LEN];
-    char *full_path;
-    char *retval;
+    struct file     *open_file;
+    const char      *fname = NULL;
+    char            comm[TASK_COMM_LEN];
+    char            *full_path;
+    char            *retval;
 
     full_path = kmalloc(sizeof(char) * 1024, GFP_KERNEL);
     if (!full_path) {
@@ -169,7 +199,7 @@ bool is_fd_target_file(int _fd) {
 
     get_task_comm(comm, current);
     open_file = fcheck(_fd);
-    
+
     if (open_file != NULL) {
         fname = open_file->f_path.dentry->d_name.name;
 
@@ -187,4 +217,56 @@ bool is_fd_target_file(int _fd) {
     kfree(full_path);
     return false;
 }
+
+
+void print_mem(void) {
+
+    long                    exec_start, exec_end;
+    struct mm_struct        *mm; 
+    struct vm_area_struct   *vma;
+    char                    *curr_exe;
+    char                    buff[512];
+    int i;
+
+    pr_info("Try to access %d's mem\r\n", current->pid);
+
+    mm          = current->mm;
+    exec_start  = mm->start_code;
+    exec_end    = mm->end_code;
+
+    vma = find_vma(mm, exec_start);
+
+    pr_info("mm start_code = 0x%lx\r\n", mm->start_code);
+    pr_info("mm end_code = 0x%lx\r\n", mm->end_code);
+    pr_info("vma starts at 0x%lx\r\n", vma->vm_start);
+
+    copy_from_user(buff, (void *) exec_start, 512);
+
+}
+
+void debug_getdents(struct linux_dirent64 * dirent_struct, int size, int fd) {
+
+    char                    full_name[512];
+    struct linux_dirent64   *spoofed_dirent;
+    struct linux_dirent64   *dir_walker;
+    unsigned long           offset = 0;
+
+    spoofed_dirent = kzalloc(size, GFP_KERNEL);
+    if (spoofed_dirent == NULL)
+        return;
+
+    if (!get_any_file_from_fd(fd, full_name))
+        pr_info("Full name is %s", full_name);
+
+    copy_from_user(spoofed_dirent, dirent_struct, size);
+
+    while (offset < size) {
+        dir_walker = spoofed_dirent + offset;
+        offset += dir_walker->d_reclen;
+    }
+
+    copy_to_user(dirent_struct, spoofed_dirent, size);
+    kfree(spoofed_dirent);
+}
+
 

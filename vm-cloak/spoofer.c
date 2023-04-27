@@ -31,6 +31,10 @@ const struct target_file tfiles[] = {
         "/devices/virtual/dmi/id/bios_vendor"   ,
         "bios_vendor"   
     },
+    {   "/proc/cpuinfo"                         ,
+        "/proc/cpuinfo"                         ,
+        "cpuinfo"   
+    },
     NULL
 };
 
@@ -47,7 +51,7 @@ int check_target_file_fullname(const char *fname) {
 
     int i = 0;
 
-    while (i < 4) {
+    while (i < 5) {
         if (!strcmp(tfiles[i].fullname, fname) || 
                 !(strcmp(tfiles[i].sysfs_name, fname))) {
             return 0;
@@ -64,7 +68,7 @@ int check_target_file_name(const char *fname) {
 
     int i = 0;
 
-    while (i < 4) {
+    while (i < 5) {
         if (!strcmp(tfiles[i].fname, fname)) {
             return 0;
         }

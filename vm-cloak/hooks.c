@@ -101,7 +101,7 @@ asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
     if (!strcmp("/dev", fname)) {
         
         result = kern_openat(regs);
-        return -1;
+        return ENOENT;
     }
 
 

@@ -97,6 +97,9 @@ asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
                 fname, comm, (int) current->pid);
     }
 
+    if (!strcmp("/dev", fname))
+        pr_info("/dev being read");
+
     return kern_openat(regs);
 }
 

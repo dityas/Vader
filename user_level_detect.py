@@ -38,16 +38,21 @@ def check_DMI_info():
                  "/sys/class/dmi/id/board_vendor",
                  "/sys/class/dmi/id/bios_vendor"]
 
+    found = False
     for dmi_file in DMI_FILES:
         data = get_file_data(dmi_file)
 
         for identifier in identifiers:
             if identifier in data:
                 print(f"[X] Found {identifier} in {dmi_file}")
-                return True
+                found = True
 
-    print("[ ] Nothing suspicious found in dmi files")
-    return False
+    if found:
+        return True
+    
+    else:
+        print("[ ] Nothing suspicious found in dmi files")
+        return False
 
 
 def _get_interface_addrs(raw_strings):

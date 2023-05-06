@@ -3,128 +3,13 @@
 #include <linux/unistd.h>
 #include <linux/kprobes.h>
 #include <linux/sched.h>
-#include <linux/fs.h>
-/* 
- * Declare types to make everything readable
- *
- * openat_ptr points to asmlinkage long sys_openat(...)
- *
- * calling convention with struct pt_regs:
- * RDI, RSI, RDX, R10, R8, R9
- */
-typedef asmlinkage long (*syscall_ptr)(const struct pt_regs *);
-
-static syscall_ptr kern_openat;
-static asmlinkage long vm_cloak_openat(const struct pt_regs *);
+#include <linux/string.h>
+#include "spoofer.h"
+#include "hooks.h"
 
 
 static unsigned long **syscall_table;
 static unsigned long **get_syscall_table(void);
-
-static inline void asm_write_cr0(unsigned long);
-static void remove_write_prot(void);
-static void restore_write_prot(void);
-
-static void hook_syscalls(void);
-static void hook_openat(void);
-
-static void unhook_syscalls(void);
-static void unhook_openat(void);
-
-
-static int OPENAT_COUNTS = 0;
-
-
-/*
- * RSI will have the const char __user *filename value.
- * We will use get_filename(char __user *) from fs.h to get the filename being
- * opened.
- */
-static asmlinkage long vm_cloak_openat(const struct pt_regs *regs) {
-
-    struct filename *fname;
-    OPENAT_COUNTS += 1;
-    
-    pr_info("inside hook for %s\r\n", (char __user *) regs->si);
-    return kern_openat(regs);
-}
-
-
-static void hook_openat(void) {
-    /*
-     * Hook the openat syscall
-     */
-
-    kern_openat = (syscall_ptr) syscall_table[__NR_openat];
-    syscall_table[__NR_openat] = (unsigned long *) vm_cloak_openat;
-    pr_info("openat hooked");
-}
-
-static void unhook_openat(void) {
-    /*
-     * Hook the openat syscall
-     */
-
-    syscall_table[__NR_openat] = (unsigned long *) kern_openat;
-    pr_info("openat restored");
-}
-
-
-/*
- * Write protection mechanism manipulation
- */
-
-static inline void asm_write_cr0(unsigned long cr0) {
-    /*
-     * Looks like write_cr0 in version >= 5.10 does not work after
-     * CPU init. So we'll go down to assembly and do it ourselves
-     */
-    asm volatile("mov %0, %%cr0" : "+r"(cr0) :: "memory");
-}
-
-static void restore_write_prot(void) {
-
-    unsigned long cr0 = read_cr0();
-    pr_err("CR0 value before setting is 0x%lx", cr0);
-    set_bit(16, &cr0);
-    asm_write_cr0(cr0);
-    cr0 = read_cr0();
-    pr_err("CR0 value after setting is 0x%lx", cr0);
-}
-
-
-static void remove_write_prot(void) {
-
-    unsigned long cr0 = read_cr0();
-    pr_err("CR0 value before clearing is 0x%lx", cr0);
-    clear_bit(16, &cr0);
-    asm_write_cr0(cr0);
-    cr0 = read_cr0();
-    pr_err("CR0 value after clearing is 0x%lx", cr0);
-}
-
-
-/*
- * Hooking and unhooking functions
- */
-
-static void hook_syscalls(void) {
-
-    remove_write_prot();
-    
-    hook_openat();
-
-    restore_write_prot();
-}
-
-static void unhook_syscalls(void) {
-
-    remove_write_prot();
-
-    unhook_openat();
-
-    restore_write_prot();
-}
 
 
 /*
@@ -174,7 +59,7 @@ static int __init start_vm_cloak(void) {
     }
 
     pr_info("sys_call_table found at 0x%p\r\n", syscall_table);
-    hook_syscalls();
+    hook_syscalls(syscall_table);
 
     return 0;
 }
@@ -182,8 +67,7 @@ static int __init start_vm_cloak(void) {
 
 static void __exit stop_vm_cloak(void) {
 
-    unhook_syscalls();
-    pr_info("openat was called %d times\r\n", OPENAT_COUNTS);
+    unhook_syscalls(syscall_table);
     pr_info("Stopping VMCloak\r\n");
 }
 
